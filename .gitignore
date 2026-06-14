@@ -1,0 +1,5 @@
+# Model weights (download via AutoModel.from_pretrained("distilbert-base-uncased"))
+distilbert-base-uncased/
+
+# Dataset (download via load_dataset("emotion"))
+emotion/

@@ -1,0 +1,157 @@
+\begin{thebibliography}{22}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Devlin et~al.(2018)Devlin, Chang, Lee, and
+  Toutanova]{Devlin2018BERTPO}
+Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova.
+\newblock Bert: Pre-training of deep bidirectional transformers for language
+  understanding.
+\newblock In \emph{NAACL-HLT}, 2018.
+
+\bibitem[Radford et~al.(2019)Radford, Wu, Child, Luan, Amodei, and
+  Sutskever]{Radford2019LanguageMA}
+Alec Radford, Jeffrey Wu, Rewon Child, David Luan, Dario Amodei, and Ilya
+  Sutskever.
+\newblock Language models are unsupervised multitask learners.
+\newblock 2019.
+
+\bibitem[Liu et~al.(2019)Liu, Ott, Goyal, Du, Joshi, Chen, Levy, Lewis,
+  Zettlemoyer, and Stoyanov]{Liu2019RoBERTaAR}
+Yinhan Liu, Myle Ott, Naman Goyal, Jingfei Du, Mandar~S. Joshi, Danqi Chen,
+  Omer Levy, Mike Lewis, Luke~S. Zettlemoyer, and Veselin Stoyanov.
+\newblock Roberta: A robustly optimized bert pretraining approach.
+\newblock \emph{ArXiv}, abs/1907.11692, 2019.
+
+\bibitem[Schwartz et~al.(2019)Schwartz, Dodge, Smith, and
+  Etzioni]{Schwartz2019GreenA}
+Roy Schwartz, Jesse Dodge, Noah~A. Smith, and Oren Etzioni.
+\newblock Green ai.
+\newblock \emph{ArXiv}, abs/1907.10597, 2019.
+
+\bibitem[Strubell et~al.(2019)Strubell, Ganesh, and
+  McCallum]{Strubell2019EnergyAP}
+Emma Strubell, Ananya Ganesh, and Andrew McCallum.
+\newblock Energy and policy considerations for deep learning in nlp.
+\newblock In \emph{ACL}, 2019.
+
+\bibitem[Vaswani et~al.(2017)Vaswani, Shazeer, Parmar, Uszkoreit, Jones, Gomez,
+  Kaiser, and Polosukhin]{Vaswani2017AttentionIA}
+Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones,
+  Aidan~N. Gomez, Lukasz Kaiser, and Illia Polosukhin.
+\newblock Attention is all you need.
+\newblock In \emph{NIPS}, 2017.
+
+\bibitem[Wolf et~al.(2019)Wolf, Debut, Sanh, Chaumond, Delangue, Moi, Cistac,
+  Rault, Louf, Funtowicz, and Brew]{wolf2019transformers}
+Thomas Wolf, Lysandre Debut, Victor Sanh, Julien Chaumond, Clement Delangue,
+  Anthony Moi, Pierric Cistac, Tim Rault, Rémi Louf, Morgan Funtowicz, and
+  Jamie Brew.
+\newblock Transformers: State-of-the-art natural language processing, 2019.
+
+\bibitem[Bucila et~al.(2006)Bucila, Caruana, and
+  Niculescu-Mizil]{Bucila2006ModelC}
+Cristian Bucila, Rich Caruana, and Alexandru Niculescu-Mizil.
+\newblock Model compression.
+\newblock In \emph{KDD}, 2006.
+
+\bibitem[Hinton et~al.(2015)Hinton, Vinyals, and Dean]{Hinton2015DistillingTK}
+Geoffrey~E. Hinton, Oriol Vinyals, and Jeffrey Dean.
+\newblock Distilling the knowledge in a neural network.
+\newblock \emph{ArXiv}, abs/1503.02531, 2015.
+
+\bibitem[Zhu et~al.(2015)Zhu, Kiros, Zemel, Salakhutdinov, Urtasun, Torralba,
+  and Fidler]{Zhu2015AligningBA}
+Yukun Zhu, Ryan Kiros, Richard~S. Zemel, Ruslan Salakhutdinov, Raquel Urtasun,
+  Antonio Torralba, and Sanja Fidler.
+\newblock Aligning books and movies: Towards story-like visual explanations by
+  watching movies and reading books.
+\newblock \emph{2015 IEEE International Conference on Computer Vision (ICCV)},
+  pages 19--27, 2015.
+
+\bibitem[Wang et~al.(2018)Wang, Singh, Michael, Hill, Levy, and
+  Bowman]{Wang2018GLUEAM}
+Alex Wang, Amanpreet Singh, Julian Michael, Felix Hill, Omer Levy, and
+  Samuel~R. Bowman.
+\newblock Glue: A multi-task benchmark and analysis platform for natural
+  language understanding.
+\newblock In \emph{ICLR}, 2018.
+
+\bibitem[Peters et~al.(2018)Peters, Neumann, Iyyer, Gardner, Clark, Lee, and
+  Zettlemoyer]{Peters2018DeepCW}
+Matthew~E. Peters, Mark Neumann, Mohit Iyyer, Matt Gardner, Christopher Clark,
+  Kenton Lee, and Luke Zettlemoyer.
+\newblock Deep contextualized word representations.
+\newblock In \emph{NAACL}, 2018.
+
+\bibitem[Wang et~al.(2019)Wang, Tenney, Pruksachatkun, Yu, Hula, Xia,
+  Pappagari, Jin, McCoy, Patel, Huang, Phang, Grave, Kim, Htut, F'{e}vry, Chen,
+  Nangia, Liu, Mohananey, Bordia, Patry, Pavlick, and Bowman]{wang2019jiant}
+Alex Wang, Ian~F. Tenney, Yada Pruksachatkun, Katherin Yu, Jan Hula, Patrick
+  Xia, Raghu Pappagari, Shuning Jin, R.~Thomas McCoy, Roma Patel, Yinghui
+  Huang, Jason Phang, Edouard Grave, Najoung Kim, Phu~Mon Htut, Thibault
+  F'{e}vry, Berlin Chen, Nikita Nangia, Haokun Liu, Anhad Mohananey, Shikha
+  Bordia, Nicolas Patry, Ellie Pavlick, and Samuel~R. Bowman.
+\newblock \texttt{jiant} 1.1: A software toolkit for research on
+  general-purpose text understanding models.
+\newblock \url{http://jiant.info/}, 2019.
+
+\bibitem[Maas et~al.(2011)Maas, Daly, Pham, Huang, Ng, and
+  Potts]{Maas2011LearningWV}
+Andrew~L. Maas, Raymond~E. Daly, Peter~T. Pham, Dan Huang, Andrew~Y. Ng, and
+  Christopher Potts.
+\newblock Learning word vectors for sentiment analysis.
+\newblock In \emph{ACL}, 2011.
+
+\bibitem[Rajpurkar et~al.(2016)Rajpurkar, Zhang, Lopyrev, and
+  Liang]{Rajpurkar2016SQuAD10}
+Pranav Rajpurkar, Jian Zhang, Konstantin Lopyrev, and Percy Liang.
+\newblock Squad: 100, 000+ questions for machine comprehension of text.
+\newblock In \emph{EMNLP}, 2016.
+
+\bibitem[Tang et~al.(2019)Tang, Lu, Liu, Mou, Vechtomova, and
+  Lin]{Tang2019DistillingTK}
+Raphael Tang, Yao Lu, Linqing Liu, Lili Mou, Olga Vechtomova, and Jimmy Lin.
+\newblock Distilling task-specific knowledge from bert into simple neural
+  networks.
+\newblock \emph{ArXiv}, abs/1903.12136, 2019.
+
+\bibitem[Chatterjee(2019)]{Chatterjee2019MakingNM}
+Debajyoti Chatterjee.
+\newblock Making neural machine reading comprehension faster.
+\newblock \emph{ArXiv}, abs/1904.00796, 2019.
+
+\bibitem[Turc et~al.(2019)Turc, Chang, Lee, and Toutanova]{Turc2019WellReadSL}
+Iulia Turc, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova.
+\newblock Well-read students learn better: The impact of student initialization
+  on knowledge distillation.
+\newblock \emph{ArXiv}, abs/1908.08962, 2019.
+
+\bibitem[Yang et~al.(2019)Yang, Shou, Gong, Lin, and Jiang]{Yang2019ModelCW}
+Ze~Yang, Linjun Shou, Ming Gong, Wutao Lin, and Daxin Jiang.
+\newblock Model compression with multi-task knowledge distillation for
+  web-scale question answering system.
+\newblock \emph{ArXiv}, abs/1904.09636, 2019.
+
+\bibitem[Tsai et~al.(2019)Tsai, Riesa, Johnson, Arivazhagan, Li, and
+  Archer]{Tsai2019SmallAP}
+Henry Tsai, Jason Riesa, Melvin Johnson, Naveen Arivazhagan, Xin Li, and Amelia
+  Archer.
+\newblock Small and practical bert models for sequence labeling.
+\newblock In \emph{EMNLP-IJCNLP}, 2019.
+
+\bibitem[Michel et~al.(2019)Michel, Levy, and Neubig]{Michel2019AreSH}
+Paul Michel, Omer Levy, and Graham Neubig.
+\newblock Are sixteen heads really better than one?
+\newblock In \emph{NeurIPS}, 2019.
+
+\bibitem[Gupta et~al.(2015)Gupta, Agrawal, Gopalakrishnan, and
+  Narayanan]{Gupta2015DeepLW}
+Suyog Gupta, Ankur Agrawal, Kailash Gopalakrishnan, and Pritish Narayanan.
+\newblock Deep learning with limited numerical precision.
+\newblock In \emph{ICML}, 2015.
+
+\end{thebibliography}
