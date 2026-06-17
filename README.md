@@ -1,7 +1,9 @@
 ## 实验说明
 
 本实验的主要内容为:  
-使用一种名为 [DistilBERT](https://arxiv.org/abs/1910.01108) 的BERT变体来自动识别人们在 Twitter 上发布文本的情绪状态.
+使用一种名为 [DistilBERT](https://arxiv.org/abs/1910.01108) 的 BERT 变体来自动识别人们在 Twitter 上发布文本的情绪状态.    
+对应教材: Natural Language Processing (Lewis Tunstall, Leandro von Werra etc.)  
+原代码仓库: [nlp-with-transformers/notebooks](https://github.com/nlp-with-transformers/notebooks)
 
 实验基础代码可参见 `HW2/project.ipynb`.  
 你需要保证自己在熟悉了基础代码后，完成以下任务 (已标记为 `TODO`):
@@ -13,5 +15,5 @@
 5. 分析分类错误的样本为什么会被分错，分类正确的样本为什么会被分对;
 6. 生成 5 个对抗样本，尽可能让你的模型无法正确判断其情感类别，并尝试解释其中的原因.
 
-提交内容: 源代码、HuggingFace 模型地址、实验报告
+提交内容: 源代码、HuggingFace 模型地址、实验报告  
 报告要求四页左右，内容包括摘要、引言、方法、实验以及总结部分.

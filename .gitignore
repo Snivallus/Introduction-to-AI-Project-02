@@ -3,3 +3,7 @@ distilbert-base-uncased/
 
 # Dataset (download via load_dataset("emotion"))
 emotion/
+
+# Claude Code documents
+CLAUDE.md
+CODING_STYLE.md
