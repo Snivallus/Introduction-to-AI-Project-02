@@ -1,3 +1,10 @@
+# Virtual enviroment
+.venv/
+
+# Python cache files
+__pycache__/
+*.pyc
+
 # Model weights (download via AutoModel.from_pretrained("distilbert-base-uncased"))
 distilbert-base-uncased/
 

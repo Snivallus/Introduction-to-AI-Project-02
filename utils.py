@@ -17,7 +17,7 @@ def set_plot_style():
         "savefig.dpi": 300,
         "figure.figsize": (6, 4),
         "axes.prop_cycle": plt.cycler("color", [
-            "0071bc", "f7931e", "c1272d", "009245", "ffde00", "9900cc",
+            "#0071bc", "#f7931e", "#c1272d", "#009245", "#ffde00", "#9900cc",
         ]),
         "font.size": 12.0,
         "pdf.fonttype": 42,
@@ -33,9 +33,9 @@ def display_library_version(library):
 def setup_chapter():
     # Check if we have a GPU
     if not torch.cuda.is_available():
-        print("No GPU was detected! This notebook can be *very* slow without a GPU 🐢")
+        print("No GPU was detected! This notebook can be very slow without a GPU 🐢")
     else:
-        print("GPU was detected! This notebook can be *very* fast with a GPU 🐰")
+        print("GPU was detected! This notebook can be very fast with a GPU 🐰")
     # Give visibility on versions of the core libraries
     display_library_version(transformers)
     display_library_version(datasets)
