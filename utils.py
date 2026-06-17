@@ -4,23 +4,25 @@ from textwrap import TextWrapper
 
 import datasets
 import huggingface_hub
-import matplotlib.font_manager as font_manager
 import matplotlib.pyplot as plt
 import torch
 import transformers
 from IPython.display import set_matplotlib_formats
 
 
-def install_mpl_fonts():
-    font_dir = ["./orm_fonts/"]
-    for font in font_manager.findSystemFonts(font_dir):
-        font_manager.fontManager.addfont(font)
-
-
 def set_plot_style():
-    install_mpl_fonts()
     set_matplotlib_formats("pdf", "svg")
-    plt.style.use("plotting.mplstyle")
+    # Apply custom plot style (previously defined in plotting.mplstyle)
+    plt.rcParams.update({
+        "savefig.dpi": 300,
+        "figure.figsize": (6, 4),
+        "axes.prop_cycle": plt.cycler("color", [
+            "0071bc", "f7931e", "c1272d", "009245", "ffde00", "9900cc",
+        ]),
+        "font.size": 12.0,
+        "pdf.fonttype": 42,
+        "ps.fonttype": 42,
+    })
     logging.getLogger("matplotlib").setLevel(level=logging.ERROR)
 
 

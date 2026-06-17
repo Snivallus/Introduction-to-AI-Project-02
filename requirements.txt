@@ -1,5 +1,15 @@
-transformers[tf,torch,sentencepiece,vision,optuna,sklearn,onnxruntime]==4.16.2
-datasets[audio]==1.16.1
-matplotlib
+# Core NLP libraries
+transformers>=5.0.0
+datasets>=5.0.0
+
+# Dimensionality reduction & visualization
+umap-learn>=0.5.0
+matplotlib>=3.0.0
+
+# ML classifiers & metrics
+scikit-learn>=1.0.0
+
+# Jupyter notebook support
+notebook
+ipykernel
 ipywidgets
-umap-learn==0.5.1
