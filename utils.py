@@ -1,4 +1,5 @@
 import logging
+import warnings
 from textwrap import TextWrapper
 from typing import Any, Callable, Dict, List
 from pathlib import Path
@@ -44,6 +45,9 @@ def setup_chapter() -> None:
     Checks for GPU availability, displays core library versions,
     suppresses verbose logging, and applies the custom plot style.
     """
+    # Suppress harmless PyTorch gather warning during predict()
+    warnings.filterwarnings(
+        "ignore", message="Was asked to gather along dimension 0")
     if not torch.cuda.is_available():
         print("No GPU was detected! This notebook can be very slow "
               "without a GPU \U0001f422")
