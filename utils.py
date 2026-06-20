@@ -235,6 +235,7 @@ def train_finetune_experiment(
         ``epochs_trained``.
     """
     import os
+    import warnings
     from pathlib import Path
     from sklearn.metrics import accuracy_score, f1_score
     from transformers import (
@@ -243,6 +244,11 @@ def train_finetune_experiment(
         Trainer,
         TrainingArguments,
     )
+
+    # Suppress harmless warnings in subprocess workers
+    warnings.filterwarnings(
+        "ignore", message="Was asked to gather along dimension 0")
+    transformers.logging.set_verbosity_error()
 
     os.makedirs(ckpt_dir, exist_ok=True)
 
