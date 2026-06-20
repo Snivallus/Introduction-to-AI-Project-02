@@ -193,7 +193,6 @@ def train_finetune_experiment(
     batch_size: int,
     weight_decay: float,
     model_ckpt: str,
-    tokenizer: "transformers.AutoTokenizer",
     train_dataset: "datasets.Dataset",
     eval_dataset: "datasets.Dataset",
     num_labels: int,
@@ -216,7 +215,6 @@ def train_finetune_experiment(
         batch_size: Batch size per device for train and eval.
         weight_decay: L2 regularisation weight decay.
         model_ckpt: Hugging Face model checkpoint identifier.
-        tokenizer: The pretrained tokenizer.
         train_dataset: Training dataset with "label" column.
         eval_dataset: Validation dataset with "label" column.
         num_labels: Number of output classes.
@@ -281,7 +279,6 @@ def train_finetune_experiment(
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
-        tokenizer=tokenizer,
         compute_metrics=compute_metrics_fn,
         callbacks=[
             EarlyStoppingCallback(
@@ -379,7 +376,6 @@ def plot_hyperparameter_effects(
 
 def tune_hyperparameters(
     model_ckpt: str,
-    tokenizer: "transformers.AutoTokenizer",
     train_dataset: "datasets.Dataset",
     eval_dataset: "datasets.Dataset",
     num_labels: int,
@@ -395,7 +391,6 @@ def tune_hyperparameters(
 
     Args:
         model_ckpt: Hugging Face model checkpoint identifier.
-        tokenizer: The pretrained tokenizer.
         train_dataset: Training dataset with "label" column.
         eval_dataset: Validation dataset with "label" column.
         num_labels: Number of output classes.
@@ -429,7 +424,6 @@ def tune_hyperparameters(
             batch_size=bs,
             weight_decay=wd,
             model_ckpt=model_ckpt,
-            tokenizer=tokenizer,
             train_dataset=train_dataset,
             eval_dataset=eval_dataset,
             num_labels=num_labels,
