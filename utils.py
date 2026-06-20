@@ -274,7 +274,7 @@ def train_finetune_experiment(
                 per_device_train_batch_size=batch_size,
                 per_device_eval_batch_size=batch_size,
                 weight_decay=weight_decay,
-                evaluation_strategy="epoch",
+                eval_strategy="epoch",
                 save_strategy="epoch",
                 load_best_model_at_end=True,
                 metric_for_best_model="accuracy",
