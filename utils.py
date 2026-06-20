@@ -201,10 +201,10 @@ def train_finetune_experiment(
     train_dataset: "datasets.Dataset",
     eval_dataset: "datasets.Dataset",
     num_labels: int,
-    compute_metrics_fn: Callable,
     ckpt_dir: str = "./checkpoints",
     num_epochs: int = 10,
     early_stopping_patience: int = 3,
+    device_id: int = 0,
 ) -> Dict[str, Any]:
     """Train one fine-tuning experiment with given hyperparameters.
 
@@ -223,12 +223,11 @@ def train_finetune_experiment(
         train_dataset: Training dataset with "label" column.
         eval_dataset: Validation dataset with "label" column.
         num_labels: Number of output classes.
-        compute_metrics_fn: Metric function for the Trainer
-            (see ``transformers.Trainer``).
         ckpt_dir: Directory for experiment checkpoints.
         num_epochs: Maximum number of training epochs.
         early_stopping_patience: Stop if no eval improvement
             after this many epochs.
+        device_id: GPU device index for this worker.
 
     Returns:
         Dict with keys: ``experiment_id``, ``learning_rate``,
@@ -237,6 +236,7 @@ def train_finetune_experiment(
     """
     import os
     from pathlib import Path
+    from sklearn.metrics import accuracy_score, f1_score
     from transformers import (
         AutoModelForSequenceClassification,
         EarlyStoppingCallback,
@@ -251,12 +251,19 @@ def train_finetune_experiment(
     print(f"[{exp_idx}] lr={learning_rate}, bs={batch_size}, "
           f"wd={weight_decay}  ...  ", end="", flush=True)
 
-    device = torch.device("cuda" if torch.cuda.is_available()
-                          else "cpu")
+    device = torch.device(f"cuda:{device_id}"
+                          if torch.cuda.is_available() else "cpu")
 
     model = (AutoModelForSequenceClassification
              .from_pretrained(model_ckpt, num_labels=num_labels)
              .to(device))
+
+    def compute_metrics(pred):
+        labels = pred.label_ids
+        preds = pred.predictions.argmax(-1)
+        f1 = f1_score(labels, preds, average="weighted")
+        acc = accuracy_score(labels, preds)
+        return {"accuracy": acc, "f1": f1}
 
     training_args = TrainingArguments(
         output_dir=str(output_dir),
@@ -285,7 +292,7 @@ def train_finetune_experiment(
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
-        compute_metrics=compute_metrics_fn,
+        compute_metrics=compute_metrics,
         callbacks=[
             EarlyStoppingCallback(
                 early_stopping_patience=early_stopping_patience),
@@ -385,27 +392,27 @@ def tune_hyperparameters(
     train_dataset: "datasets.Dataset",
     eval_dataset: "datasets.Dataset",
     num_labels: int,
-    compute_metrics_fn: Callable,
     ckpt_dir: str = "./checkpoints",
     results_dir: str = "./figures",
 ) -> None:
-    """Run a 3x3x3 grid search over learning rate, batch size, and
-    weight decay using the Hugging Face ``Trainer`` API.
+    """Run a 3x3x3 grid search in parallel across all available GPUs.
 
     Each combination is trained independently from the same pretrained
-    checkpoint.  Results and analysis plots are saved to ``results_dir``.
+    checkpoint.  Experiments are distributed across GPUs via round-robin
+    using ``ProcessPoolExecutor`` with a spawn context.  Results and
+    analysis plots are saved to ``results_dir``.
 
     Args:
         model_ckpt: Hugging Face model checkpoint identifier.
         train_dataset: Training dataset with "label" column.
         eval_dataset: Validation dataset with "label" column.
         num_labels: Number of output classes.
-        compute_metrics_fn: Metric function for the Trainer
-            (see ``transformers.Trainer``).
         ckpt_dir: Directory for per-experiment checkpoints.
         results_dir: Directory for CSV results and analysis PDF.
     """
     import os
+    import concurrent.futures as cf
+    import multiprocessing as mp
     from itertools import product
     import pandas as pd
 
@@ -419,33 +426,55 @@ def tune_hyperparameters(
 
     keys = list(param_grid.keys())
     combinations = list(product(*param_grid.values()))
+    num_gpus = torch.cuda.device_count()
+    max_workers = max(1, num_gpus)
 
     print(f"Total experiments: {len(combinations)}")
+    print(f"GPUs available: {num_gpus}, Workers: {max_workers}")
+
+    experiment_args = []
+    for exp_idx, (lr, bs, wd) in enumerate(combinations, 1):
+        device_id = (exp_idx - 1) % max_workers if num_gpus > 0 else 0
+        experiment_args.append((
+            exp_idx, lr, bs, wd, model_ckpt,
+            train_dataset, eval_dataset, num_labels,
+            ckpt_dir, 10, 3, device_id,
+        ))
 
     results = []
-    for exp_idx, (lr, bs, wd) in enumerate(combinations, 1):
-        result = train_finetune_experiment(
-            exp_idx=exp_idx,
-            learning_rate=lr,
-            batch_size=bs,
-            weight_decay=wd,
-            model_ckpt=model_ckpt,
-            train_dataset=train_dataset,
-            eval_dataset=eval_dataset,
-            num_labels=num_labels,
-            compute_metrics_fn=compute_metrics_fn,
-            ckpt_dir=ckpt_dir,
-        )
-        results.append(result)
+
+    if max_workers > 1:
+        ctx = mp.get_context("spawn")
+        print(f"\nStarting parallel execution with {max_workers} workers...")
+        print(f"Multiprocessing context: {ctx.get_start_method()}\n")
+
+        with cf.ProcessPoolExecutor(
+            max_workers=max_workers, mp_context=ctx,
+        ) as executor:
+            future_map = {
+                executor.submit(train_finetune_experiment, *args): args
+                for args in experiment_args
+            }
+            for future in cf.as_completed(future_map):
+                try:
+                    result = future.result()
+                    results.append(result)
+                except Exception as e:
+                    args = future_map[future]
+                    print(f"[{args[0]:02d}] FAILED: {e}")
+    else:
+        print(f"\nRunning sequentially (no multi-GPU available)...\n")
+        for args in experiment_args:
+            result = train_finetune_experiment(*args)
+            results.append(result)
 
     results_df = pd.DataFrame(results)
     results_df.to_csv(
         Path(results_dir) / "hyperparameter_tuning_results.csv", index=False)
 
-    # Print sorted results
     print("\n=== Hyperparameter Tuning Results ===")
     print(results_df.sort_values("best_val_accuracy", ascending=False)
           .to_string(index=False))
 
-    # Plot hyperparameter effect analysis
-    plot_hyperparameter_effects(results_df, save_dir=results_dir, metric="best_val_accuracy")
+    plot_hyperparameter_effects(
+        results_df, save_dir=results_dir, metric="best_val_accuracy")
