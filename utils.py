@@ -126,14 +126,14 @@ def evaluate_classifiers(
     X_valid_scaled = scaler.transform(X_valid_raw)
 
     classifiers = {
-        "Softmax (Logistic Regression)":
-            LogisticRegression(max_iter=3000),
+        "Softmax Regression":
+            LogisticRegression(max_iter=10000),
         "Random Forest":
-            RandomForestClassifier(n_estimators=100, random_state=42),
+            RandomForestClassifier(n_estimators=500, random_state=51),
         "SVM (RBF Kernel)":
             SVC(kernel="rbf"),
-        "KNN (k=5)":
-            KNeighborsClassifier(n_neighbors=5),
+        "KNN (k=9)":
+            KNeighborsClassifier(n_neighbors=9),
     }
 
     fig, axes = plt.subplots(2, 2, figsize=(12, 10))
