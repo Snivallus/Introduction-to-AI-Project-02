@@ -407,9 +407,9 @@ def tune_hyperparameters(
     os.makedirs(results_dir, exist_ok=True)
 
     param_grid = {
-        "learning_rate": [5e-4, 1e-3, 5e-3],
+        "learning_rate": [2e-5, 1e-4, 5e-4],
         "batch_size": [4, 8, 16],
-        "weight_decay": [0, 0.01, 0.1],
+        "weight_decay": [0.001, 0.01, 0.1],
     }
 
     keys = list(param_grid.keys())
