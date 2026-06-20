@@ -268,6 +268,7 @@ def train_finetune_experiment(
         save_total_limit=2,
         logging_steps=max(
             1, len(train_dataset) // batch_size // 10),
+        remove_unused_columns=False,
         disable_tqdm=True,
         report_to="none",
         log_level="error",
