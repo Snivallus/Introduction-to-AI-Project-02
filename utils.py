@@ -79,7 +79,7 @@ def wrap_print_text(print_fn: Callable) -> Callable:
         A wrapped print function that word-wraps its input text.
     """
 
-    def wrapped_func(text: object) -> None:
+    def wrapped_func(text: object, **kwargs) -> None:
         if not isinstance(text, str):
             text = str(text)
         wrapper = TextWrapper(
@@ -89,7 +89,8 @@ def wrap_print_text(print_fn: Callable) -> Callable:
             replace_whitespace=False,
         )
         return print_fn("\n".join(wrapper.fill(line)
-                                  for line in text.split("\n")))
+                                  for line in text.split("\n")),
+                        **kwargs)
 
     return wrapped_func
 
