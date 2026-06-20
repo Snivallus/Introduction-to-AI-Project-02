@@ -98,6 +98,7 @@ def evaluate_classifiers(
     X_valid_raw: np.ndarray,
     y_valid: np.ndarray,
     class_names: List[str],
+    save_dir: str = "./figures",
 ) -> None:
     """Train four classifiers on extracted features and compare performance.
 
@@ -111,6 +112,8 @@ def evaluate_classifiers(
         X_valid_raw: Validation feature matrix of shape (n_valid, n_features).
         y_valid: Validation labels of shape (n_valid,).
         class_names: List of class names for confusion matrix axes.
+        save_dir: Directory to save the figure as PDF (created if needed).
+            Set to None to skip saving.
     """
     from sklearn.preprocessing import StandardScaler
     from sklearn.linear_model import LogisticRegression
@@ -167,4 +170,297 @@ def evaluate_classifiers(
         ax.set_title(f"{name}\nAccuracy: {acc:.4f}")
 
     plt.tight_layout()
+    if save_dir is not None:
+        import os
+        from pathlib import Path
+        os.makedirs(save_dir, exist_ok=True)
+        save_path = Path(save_dir) / "classifier_comparison.pdf"
+        plt.savefig(save_path, dpi=300, bbox_inches="tight")
+        print(f"Figure saved to {save_path}")
     plt.show()
+
+    # Print sorted comparison
+    print("\n--- Performance Comparison ---")
+    for rank, (name, acc) in enumerate(
+            sorted(results.items(), key=lambda x: x[1], reverse=True), 1):
+        print(f"  {rank}. {name:35s}  {acc:.4f}")
+
+
+def train_finetune_experiment(
+    exp_idx: int,
+    learning_rate: float,
+    batch_size: int,
+    weight_decay: float,
+    model_ckpt: str,
+    tokenizer: "transformers.AutoTokenizer",
+    train_dataset: "datasets.Dataset",
+    eval_dataset: "datasets.Dataset",
+    num_labels: int,
+    compute_metrics_fn: Callable,
+    ckpt_dir: str = "./checkpoints",
+    log_dir: str = "./logs",
+    num_epochs: int = 10,
+    early_stopping_patience: int = 3,
+) -> Dict[str, Any]:
+    """Train one fine-tuning experiment with given hyperparameters.
+
+    A fresh ``AutoModelForSequenceClassification`` is loaded from
+    ``model_ckpt`` so that each experiment starts from the same
+    pretrained weights.  Training progress is logged to a file in
+    ``log_dir`` and checkpoints are saved in ``ckpt_dir``.
+
+    Args:
+        exp_idx: Experiment index (1-based) for naming.
+        learning_rate: Peak learning rate for the optimizer.
+        batch_size: Batch size per device for train and eval.
+        weight_decay: L2 regularisation weight decay.
+        model_ckpt: Hugging Face model checkpoint identifier.
+        tokenizer: The pretrained tokenizer.
+        train_dataset: Training dataset with "label" column.
+        eval_dataset: Validation dataset with "label" column.
+        num_labels: Number of output classes.
+        compute_metrics_fn: Metric function for the Trainer
+            (see ``transformers.Trainer``).
+        ckpt_dir: Directory for experiment checkpoints.
+        log_dir: Directory for experiment log files.
+        num_epochs: Maximum number of training epochs.
+        early_stopping_patience: Stop if no eval improvement
+            after this many epochs.
+
+    Returns:
+        Dict with keys: ``experiment_id``, ``learning_rate``,
+        ``batch_size``, ``weight_decay``, ``best_val_accuracy``,
+        ``epochs_trained``, ``log_file``.
+    """
+    import os
+    from contextlib import redirect_stdout
+    from pathlib import Path
+    from transformers import (
+        AutoModelForSequenceClassification,
+        EarlyStoppingCallback,
+        Trainer,
+        TrainingArguments,
+    )
+
+    os.makedirs(ckpt_dir, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    exp_name = f"exp_{exp_idx:02d}_lr{learning_rate}_bs{batch_size}_wd{weight_decay}"
+    log_file = Path(log_dir) / f"{exp_name}.log"
+    output_dir = Path(ckpt_dir) / f"exp_{exp_idx:02d}"
+
+    with open(log_file, "w") as f:
+        with redirect_stdout(f):
+            print("=" * 60)
+            print(f"Experiment {exp_idx}: "
+                  f"lr={learning_rate}, bs={batch_size}, wd={weight_decay}")
+            print("=" * 60)
+
+            device = torch.device("cuda" if torch.cuda.is_available()
+                                  else "cpu")
+            print(f"Device: {device}")
+
+            # Load a fresh pretrained model for each experiment
+            model = (AutoModelForSequenceClassification
+                     .from_pretrained(model_ckpt, num_labels=num_labels)
+                     .to(device))
+            print(f"Model loaded from {model_ckpt}")
+
+            training_args = TrainingArguments(
+                output_dir=str(output_dir),
+                num_train_epochs=num_epochs,
+                learning_rate=learning_rate,
+                per_device_train_batch_size=batch_size,
+                per_device_eval_batch_size=batch_size,
+                weight_decay=weight_decay,
+                evaluation_strategy="epoch",
+                save_strategy="epoch",
+                load_best_model_at_end=True,
+                metric_for_best_model="accuracy",
+                greater_is_better=True,
+                save_total_limit=2,
+                logging_steps=max(
+                    1, len(train_dataset) // batch_size // 10),
+                disable_tqdm=True,
+                report_to="none",
+                log_level="error",
+                push_to_hub=False,
+            )
+
+            trainer = Trainer(
+                model=model,
+                args=training_args,
+                train_dataset=train_dataset,
+                eval_dataset=eval_dataset,
+                tokenizer=tokenizer,
+                compute_metrics=compute_metrics_fn,
+                callbacks=[
+                    EarlyStoppingCallback(
+                        early_stopping_patience=early_stopping_patience),
+                ],
+            )
+
+            trainer.train()
+
+            # Extract per-epoch evaluation accuracy from training logs
+            log_history = trainer.state.log_history
+            eval_accuracies = [
+                entry["eval_accuracy"]
+                for entry in log_history
+                if "eval_accuracy" in entry
+            ]
+            best_val_accuracy = max(eval_accuracies) if eval_accuracies else 0.0
+            epochs_trained = len(eval_accuracies)
+
+            print(f"\nBest validation accuracy: {best_val_accuracy:.4f}")
+            print(f"Epochs trained: {epochs_trained} / {num_epochs}")
+
+    return {
+        "experiment_id": exp_idx,
+        "learning_rate": learning_rate,
+        "batch_size": batch_size,
+        "weight_decay": weight_decay,
+        "best_val_accuracy": best_val_accuracy,
+        "epochs_trained": epochs_trained,
+        "log_file": str(log_file),
+    }
+
+
+def plot_hyperparameter_effects(
+    results_df: "pd.DataFrame",
+    save_dir: str = "./figures",
+    metric: str = "best_val_accuracy",
+) -> None:
+    """Plot each hyperparameter's effect on validation accuracy.
+
+    For each hyperparameter (learning_rate, batch_size, weight_decay),
+    a line chart shows the mean accuracy with :math:`\\pm 1` standard
+    deviation.  Individual experiment results are overlaid as scatter
+    points with jitter.  The figure is saved as a 300 dpi PDF.
+
+    Args:
+        results_df: DataFrame with columns ``learning_rate``,
+            ``batch_size``, ``weight_decay``, and the metric column.
+        save_dir: Directory to save the PDF figure.
+        metric: Column name for the accuracy metric to plot.
+    """
+    save_path = Path(save_dir)
+    save_path.mkdir(parents=True, exist_ok=True)
+
+    param_configs = [
+        ("learning_rate", "Learning Rate"),
+        ("batch_size", "Batch Size"),
+        ("weight_decay", "Weight Decay"),
+    ]
+
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    axes = axes.flatten()
+
+    for ax, (param_col, param_label) in zip(axes, param_configs):
+        grouped = results_df.groupby(param_col)[metric]
+        means = grouped.mean()
+        stds = grouped.std()
+
+        x = range(len(means))
+        ax.errorbar(x, means.values, yerr=stds.values, fmt="-o",
+                     capsize=5, capthick=2, linewidth=2, markersize=8,
+                     color="#2196F3", ecolor="#FF5722")
+
+        for xi, (val, group) in enumerate(grouped):
+            jitter = np.random.default_rng(42).uniform(-0.05, 0.05,
+                                                       len(group))
+            ax.scatter(xi + jitter, group.values, alpha=0.5,
+                       color="#FF5722", s=30)
+
+        tick_labels = [str(v) for v in means.index]
+        ax.set_xticks(x)
+        ax.set_xticklabels(tick_labels)
+        ax.set_xlabel(param_label)
+        ax.set_ylabel("Best Validation Accuracy")
+        ax.set_title(f"Effect of {param_label}")
+        ax.grid(True, alpha=0.3)
+
+    plt.suptitle("Hyperparameter Tuning: Effect Analysis",
+                 fontsize=14, fontweight="bold")
+    plt.tight_layout()
+    plt.savefig(save_path / "hyperparameter_effects.pdf",
+                dpi=300, bbox_inches="tight")
+    plt.show()
+    print(f"Saved: {save_path / 'hyperparameter_effects.pdf'}")
+
+
+def tune_hyperparameters(
+    model_ckpt: str,
+    tokenizer: "transformers.AutoTokenizer",
+    train_dataset: "datasets.Dataset",
+    eval_dataset: "datasets.Dataset",
+    num_labels: int,
+    compute_metrics_fn: Callable,
+    ckpt_dir: str = "./checkpoints",
+    log_dir: str = "./logs",
+    results_dir: str = "./figures",
+) -> None:
+    """Run a 3x3x3 grid search over learning rate, batch size, and
+    weight decay using the Hugging Face ``Trainer`` API.
+
+    Each combination is trained independently from the same pretrained
+    checkpoint.  Results and analysis plots are saved to ``results_dir``.
+
+    Args:
+        model_ckpt: Hugging Face model checkpoint identifier.
+        tokenizer: The pretrained tokenizer.
+        train_dataset: Training dataset with "label" column.
+        eval_dataset: Validation dataset with "label" column.
+        num_labels: Number of output classes.
+        compute_metrics_fn: Metric function for the Trainer
+            (see ``transformers.Trainer``).
+        ckpt_dir: Directory for per-experiment checkpoints.
+        log_dir: Directory for per-experiment log files.
+        results_dir: Directory for CSV results and analysis PDF.
+    """
+    import os
+    from itertools import product
+    import pandas as pd
+
+    os.makedirs(results_dir, exist_ok=True)
+
+    param_grid = {
+        "learning_rate": [5e-4, 1e-3, 5e-3],
+        "batch_size": [4, 8, 16],
+        "weight_decay": [0, 0.01, 0.1],
+    }
+
+    keys = list(param_grid.keys())
+    combinations = list(product(*param_grid.values()))
+
+    print(f"Total experiments: {len(combinations)}")
+
+    results = []
+    for exp_idx, (lr, bs, wd) in enumerate(combinations, 1):
+        result = train_finetune_experiment(
+            exp_idx=exp_idx,
+            learning_rate=lr,
+            batch_size=bs,
+            weight_decay=wd,
+            model_ckpt=model_ckpt,
+            tokenizer=tokenizer,
+            train_dataset=train_dataset,
+            eval_dataset=eval_dataset,
+            num_labels=num_labels,
+            compute_metrics_fn=compute_metrics_fn,
+            ckpt_dir=ckpt_dir,
+            log_dir=log_dir,
+        )
+        results.append(result)
+
+    results_df = pd.DataFrame(results)
+    results_df.to_csv(
+        Path(results_dir) / "hyperparameter_tuning_results.csv", index=False)
+
+    # Print sorted results
+    print("\n=== Hyperparameter Tuning Results ===")
+    print(results_df.sort_values("best_val_accuracy", ascending=False)
+          .to_string(index=False))
+
+    # Plot hyperparameter effect analysis
+    plot_hyperparameter_effects(results_df, save_dir=results_dir, metric="best_val_accuracy")
