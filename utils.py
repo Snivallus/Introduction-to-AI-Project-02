@@ -199,7 +199,6 @@ def train_finetune_experiment(
     num_labels: int,
     compute_metrics_fn: Callable,
     ckpt_dir: str = "./checkpoints",
-    log_dir: str = "./logs",
     num_epochs: int = 10,
     early_stopping_patience: int = 3,
 ) -> Dict[str, Any]:
@@ -207,8 +206,9 @@ def train_finetune_experiment(
 
     A fresh ``AutoModelForSequenceClassification`` is loaded from
     ``model_ckpt`` so that each experiment starts from the same
-    pretrained weights.  Training progress is logged to a file in
-    ``log_dir`` and checkpoints are saved in ``ckpt_dir``.
+    pretrained weights.  Training metrics are extracted from the
+    Trainer's built-in ``log_history``; checkpoints are saved to
+    ``ckpt_dir``.
 
     Args:
         exp_idx: Experiment index (1-based) for naming.
@@ -223,7 +223,6 @@ def train_finetune_experiment(
         compute_metrics_fn: Metric function for the Trainer
             (see ``transformers.Trainer``).
         ckpt_dir: Directory for experiment checkpoints.
-        log_dir: Directory for experiment log files.
         num_epochs: Maximum number of training epochs.
         early_stopping_patience: Stop if no eval improvement
             after this many epochs.
@@ -231,10 +230,9 @@ def train_finetune_experiment(
     Returns:
         Dict with keys: ``experiment_id``, ``learning_rate``,
         ``batch_size``, ``weight_decay``, ``best_val_accuracy``,
-        ``epochs_trained``, ``log_file``.
+        ``epochs_trained``.
     """
     import os
-    from contextlib import redirect_stdout
     from pathlib import Path
     from transformers import (
         AutoModelForSequenceClassification,
@@ -244,77 +242,67 @@ def train_finetune_experiment(
     )
 
     os.makedirs(ckpt_dir, exist_ok=True)
-    os.makedirs(log_dir, exist_ok=True)
 
-    exp_name = f"exp_{exp_idx:02d}_lr{learning_rate}_bs{batch_size}_wd{weight_decay}"
-    log_file = Path(log_dir) / f"{exp_name}.log"
     output_dir = Path(ckpt_dir) / f"exp_{exp_idx:02d}"
 
-    with open(log_file, "w") as f:
-        with redirect_stdout(f):
-            print("=" * 60)
-            print(f"Experiment {exp_idx}: "
-                  f"lr={learning_rate}, bs={batch_size}, wd={weight_decay}")
-            print("=" * 60)
+    print(f"[{exp_idx}] lr={learning_rate}, bs={batch_size}, "
+          f"wd={weight_decay}  ...  ", end="", flush=True)
 
-            device = torch.device("cuda" if torch.cuda.is_available()
-                                  else "cpu")
-            print(f"Device: {device}")
+    device = torch.device("cuda" if torch.cuda.is_available()
+                          else "cpu")
 
-            # Load a fresh pretrained model for each experiment
-            model = (AutoModelForSequenceClassification
-                     .from_pretrained(model_ckpt, num_labels=num_labels)
-                     .to(device))
-            print(f"Model loaded from {model_ckpt}")
+    model = (AutoModelForSequenceClassification
+             .from_pretrained(model_ckpt, num_labels=num_labels)
+             .to(device))
 
-            training_args = TrainingArguments(
-                output_dir=str(output_dir),
-                num_train_epochs=num_epochs,
-                learning_rate=learning_rate,
-                per_device_train_batch_size=batch_size,
-                per_device_eval_batch_size=batch_size,
-                weight_decay=weight_decay,
-                eval_strategy="epoch",
-                save_strategy="epoch",
-                load_best_model_at_end=True,
-                metric_for_best_model="accuracy",
-                greater_is_better=True,
-                save_total_limit=2,
-                logging_steps=max(
-                    1, len(train_dataset) // batch_size // 10),
-                disable_tqdm=True,
-                report_to="none",
-                log_level="error",
-                push_to_hub=False,
-            )
+    training_args = TrainingArguments(
+        output_dir=str(output_dir),
+        num_train_epochs=num_epochs,
+        learning_rate=learning_rate,
+        per_device_train_batch_size=batch_size,
+        per_device_eval_batch_size=batch_size,
+        weight_decay=weight_decay,
+        eval_strategy="epoch",
+        save_strategy="epoch",
+        load_best_model_at_end=True,
+        metric_for_best_model="accuracy",
+        greater_is_better=True,
+        save_total_limit=2,
+        logging_steps=max(
+            1, len(train_dataset) // batch_size // 10),
+        disable_tqdm=True,
+        report_to="none",
+        log_level="error",
+        push_to_hub=False,
+    )
 
-            trainer = Trainer(
-                model=model,
-                args=training_args,
-                train_dataset=train_dataset,
-                eval_dataset=eval_dataset,
-                tokenizer=tokenizer,
-                compute_metrics=compute_metrics_fn,
-                callbacks=[
-                    EarlyStoppingCallback(
-                        early_stopping_patience=early_stopping_patience),
-                ],
-            )
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
+        tokenizer=tokenizer,
+        compute_metrics=compute_metrics_fn,
+        callbacks=[
+            EarlyStoppingCallback(
+                early_stopping_patience=early_stopping_patience),
+        ],
+    )
 
-            trainer.train()
+    trainer.train()
 
-            # Extract per-epoch evaluation accuracy from training logs
-            log_history = trainer.state.log_history
-            eval_accuracies = [
-                entry["eval_accuracy"]
-                for entry in log_history
-                if "eval_accuracy" in entry
-            ]
-            best_val_accuracy = max(eval_accuracies) if eval_accuracies else 0.0
-            epochs_trained = len(eval_accuracies)
+    # Extract per-epoch evaluation accuracy from training logs
+    log_history = trainer.state.log_history
+    eval_accuracies = [
+        entry["eval_accuracy"]
+        for entry in log_history
+        if "eval_accuracy" in entry
+    ]
+    best_val_accuracy = max(eval_accuracies) if eval_accuracies else 0.0
+    epochs_trained = len(eval_accuracies)
 
-            print(f"\nBest validation accuracy: {best_val_accuracy:.4f}")
-            print(f"Epochs trained: {epochs_trained} / {num_epochs}")
+    print(f"best acc={best_val_accuracy:.4f}, "
+          f"epochs={epochs_trained}/{num_epochs}")
 
     return {
         "experiment_id": exp_idx,
@@ -323,7 +311,6 @@ def train_finetune_experiment(
         "weight_decay": weight_decay,
         "best_val_accuracy": best_val_accuracy,
         "epochs_trained": epochs_trained,
-        "log_file": str(log_file),
     }
 
 
@@ -398,7 +385,6 @@ def tune_hyperparameters(
     num_labels: int,
     compute_metrics_fn: Callable,
     ckpt_dir: str = "./checkpoints",
-    log_dir: str = "./logs",
     results_dir: str = "./figures",
 ) -> None:
     """Run a 3x3x3 grid search over learning rate, batch size, and
@@ -416,7 +402,6 @@ def tune_hyperparameters(
         compute_metrics_fn: Metric function for the Trainer
             (see ``transformers.Trainer``).
         ckpt_dir: Directory for per-experiment checkpoints.
-        log_dir: Directory for per-experiment log files.
         results_dir: Directory for CSV results and analysis PDF.
     """
     import os
@@ -450,7 +435,6 @@ def tune_hyperparameters(
             num_labels=num_labels,
             compute_metrics_fn=compute_metrics_fn,
             ckpt_dir=ckpt_dir,
-            log_dir=log_dir,
         )
         results.append(result)
 
