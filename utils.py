@@ -249,7 +249,7 @@ def train_finetune_experiment(
     output_dir = Path(ckpt_dir) / f"exp_{exp_idx:02d}"
 
     print(f"[{exp_idx}] lr={learning_rate}, bs={batch_size}, "
-          f"wd={weight_decay}  ...  ", end="", flush=True)
+          f"wd={weight_decay}  ...  ", end="\n", flush=True)
 
     device = torch.device(f"cuda:{device_id}"
                           if torch.cuda.is_available() else "cpu")
