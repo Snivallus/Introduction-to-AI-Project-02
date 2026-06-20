@@ -127,13 +127,16 @@ def evaluate_classifiers(
 
     classifiers = {
         "Softmax Regression":
-            LogisticRegression(max_iter=10000),
+            LogisticRegression(max_iter=10000, class_weight="balanced"),
         "Random Forest":
-            RandomForestClassifier(n_estimators=500, random_state=51),
+            RandomForestClassifier(n_estimators=500, max_depth=20,
+                                   min_samples_leaf=5,
+                                   class_weight="balanced", random_state=51),
         "SVM (RBF Kernel)":
-            SVC(kernel="rbf"),
-        "KNN (k=9)":
-            KNeighborsClassifier(n_neighbors=9),
+            SVC(kernel="rbf", class_weight="balanced"),
+        "KNN (k=10, cosine)":
+            KNeighborsClassifier(n_neighbors=10, metric="cosine",
+                                 weights="distance"),
     }
 
     fig, axes = plt.subplots(2, 2, figsize=(12, 10))
