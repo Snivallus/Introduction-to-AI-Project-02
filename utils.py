@@ -127,15 +127,16 @@ def evaluate_classifiers(
 
     classifiers = {
         "Softmax Regression":
-            LogisticRegression(max_iter=10000, class_weight="balanced"),
+            LogisticRegression(max_iter=10000),
         "Random Forest":
-            RandomForestClassifier(n_estimators=500, max_depth=20,
+            RandomForestClassifier(n_estimators=100,
                                    min_samples_leaf=5,
-                                   class_weight="balanced", random_state=51),
+                                   random_state=51),
         "SVM (RBF Kernel)":
-            SVC(kernel="rbf", class_weight="balanced"),
-        "KNN (k=10, cosine)":
-            KNeighborsClassifier(n_neighbors=10, metric="cosine",
+            SVC(kernel="rbf"),
+        "KNN (k=50, cosine)":
+            KNeighborsClassifier(n_neighbors=50, 
+                                 metric="cosine",
                                  weights="distance"),
     }
 
@@ -167,9 +168,3 @@ def evaluate_classifiers(
 
     plt.tight_layout()
     plt.show()
-
-    # Print sorted comparison
-    print("\n--- Performance Comparison ---")
-    for rank, (name, acc) in enumerate(
-            sorted(results.items(), key=lambda x: x[1], reverse=True), 1):
-        print(f"  {rank}. {name:35s}  {acc:.4f}")
