@@ -279,13 +279,12 @@ def train_finetune_experiment(
         per_device_eval_batch_size=batch_size,
         weight_decay=weight_decay,
         eval_strategy="epoch",
-        save_strategy="epoch",
+        save_strategy="no",
         load_best_model_at_end=True,
         metric_for_best_model="accuracy",
         greater_is_better=True,
-        save_total_limit=1,
         logging_steps=max(
-            1, len(train_dataset) // batch_size // num_epochs),
+            1, len(train_dataset) // batch_size // 10),
         remove_unused_columns=False,
         disable_tqdm=True,
         report_to="none",
@@ -306,6 +305,9 @@ def train_finetune_experiment(
     )
 
     trainer.train()
+    # Save best model weights to disk (load_best_model_at_end loads them
+    # into memory, but we need an explicit save for future loading)
+    trainer.save_model(str(output_dir))
 
     # Extract per-epoch evaluation accuracy from training logs
     log_history = trainer.state.log_history
@@ -486,3 +488,165 @@ def tune_hyperparameters(
 
     plot_hyperparameter_effects(
         results_df, save_dir=results_dir, metric="best_val_accuracy")
+
+
+def gradient_attack(
+    text: str,
+    target_label: int,
+    model: "transformers.AutoModelForSequenceClassification",
+    tokenizer: "transformers.AutoTokenizer",
+    num_steps: int = 10,
+    max_replacements: int = 3,
+) -> Dict[str, Any]:
+    """Generate an adversarial example via HotFlip-style token attack.
+
+    For each attack step, the gradient of the target-label loss w.r.t. the
+    token embeddings is used to select a token replacement that maximally
+    pushes the prediction toward the target class.  Only complete word
+    tokens (not ``##`` subword continuations or special tokens) are
+    considered for replacement.
+
+    Args:
+        text: Original input text to attack.
+        target_label: Desired misclassification label index.
+        model: The fine-tuned model in evaluation mode.
+        tokenizer: The pretrained tokenizer.
+        num_steps: Maximum number of attack iterations.
+        max_replacements: Maximum number of tokens to replace.
+
+    Returns:
+        Dict with keys: ``original_text``, ``adversarial_text``,
+        ``original_prediction``, ``adversarial_prediction``,
+        ``target_label``, ``success``, ``num_replacements``,
+        ``original_probs``, ``adversarial_probs``.
+    """
+    import torch
+    import torch.nn.functional as F
+    import numpy as np
+
+    model.eval()
+    device = next(model.parameters()).device
+    class_names = ["sadness", "joy", "love", "anger", "fear", "surprise"]
+
+    # ---- encode original text and get baseline prediction ----
+    inputs = tokenizer(text, return_tensors="pt").to(device)
+    input_ids = inputs["input_ids"][0]          # [seq_len]
+    attention_mask = inputs["attention_mask"][0]
+
+    with torch.no_grad():
+        logits = model(input_ids.unsqueeze(0),
+                       attention_mask=attention_mask.unsqueeze(0)).logits[0]
+        probs = F.softmax(logits, dim=-1)
+        orig_pred = int(logits.argmax())
+
+    # ---- identify attackable token positions (skip special + subword) ----
+    special_ids = {tokenizer.cls_token_id, tokenizer.sep_token_id,
+                   tokenizer.pad_token_id, tokenizer.unk_token_id,
+                   tokenizer.mask_token_id}
+    tokens = tokenizer.convert_ids_to_tokens(input_ids)
+    attack_positions = [
+        i for i, t in enumerate(tokens)
+        if input_ids[i].item() not in special_ids
+        and not t.startswith("##")
+    ]
+
+    if not attack_positions:
+        return {"original_text": text, "adversarial_text": text,
+                "success": False, "num_replacements": 0}
+
+    current_ids = input_ids.clone()
+    embedding = model.distilbert.embeddings.word_embeddings
+    replacements = 0
+    current_text = text
+    current_attention_mask = attention_mask
+
+    print(f"  Attack: '{text}' -> target={class_names[target_label]}")
+
+    for step in range(1, num_steps + 1):
+        # HotFlip: compute gradient of target loss w.r.t. input embeddings
+        model.zero_grad()
+        emb_out = embedding(current_ids.unsqueeze(0))
+        outputs = model(
+            inputs_embeds=emb_out,
+            attention_mask=current_attention_mask.unsqueeze(0),
+            labels=torch.tensor([target_label]).to(device))
+        loss = outputs.loss
+        emb_grad = torch.autograd.grad(loss, emb_out)[0][0]  # [seq_len, 768]
+
+        # Score = emb_grad · embedding[candidate] — lower = better for target
+        scores = torch.matmul(emb_grad, embedding.weight.T)  # [seq_len, vocab]
+        for pos in attack_positions:
+            scores[pos, current_ids[pos]] = float("inf")
+
+        best_pos, best_candidate = None, None
+        best_score = float("inf")
+        for pos in attack_positions:
+            min_val, min_idx = scores[pos].min(dim=-1)
+            if min_val.item() < best_score:
+                best_score = min_val.item()
+                best_pos = pos
+                best_candidate = min_idx.item()
+
+        if best_candidate is None:
+            print(f"    Step {step}: no suitable replacement, stopping.")
+            break
+
+        replacements += 1
+        current_ids[best_pos] = best_candidate
+        current_text = tokenizer.decode(current_ids, skip_special_tokens=True)
+
+        # Re-tokenize and update sequence-dependent variables
+        new_inputs = tokenizer(current_text, return_tensors="pt").to(device)
+        current_ids = new_inputs["input_ids"][0].clone()
+        current_attention_mask = new_inputs["attention_mask"][0]
+        new_tokens = tokenizer.convert_ids_to_tokens(current_ids)
+        attack_positions = [
+            j for j, t in enumerate(new_tokens)
+            if current_ids[j].item() not in special_ids
+            and not t.startswith("##")
+        ]
+        tokens = new_tokens
+
+        with torch.no_grad():
+            new_pred = int(model(**new_inputs).logits[0].argmax())
+        print(f"    Step {step}: replaced -> "
+              f"'{tokenizer.decode(best_candidate)}' "
+              f"(pred={class_names[new_pred]})")
+
+        if new_pred == target_label:
+            print(f"  -> Attack succeeded!")
+            break
+
+        if replacements >= max_replacements:
+            print(f"  -> Max replacements ({max_replacements}) reached.")
+            break
+
+    # Final evaluation
+    final_inputs = tokenizer(current_text, return_tensors="pt").to(device)
+    with torch.no_grad():
+        final_logits = model(**final_inputs).logits[0]
+        final_probs = F.softmax(final_logits, dim=-1)
+        adv_pred = int(final_logits.argmax())
+    with torch.no_grad():
+        orig_logits = model(input_ids.unsqueeze(0),
+                            attention_mask=attention_mask.unsqueeze(0)).logits[0]
+        orig_probs = F.softmax(orig_logits, dim=-1)
+        orig_pred = int(orig_logits.argmax())
+
+    print(f"  Original: '{text}' -> {class_names[orig_pred]} "
+          f"({orig_probs[orig_pred]:.3f})")
+    print(f"  Adversarial: '{current_text}' -> {class_names[adv_pred]} "
+          f"({final_probs[adv_pred]:.3f})")
+    print()
+
+    return {
+        "original_text": text,
+        "adversarial_text": current_text,
+        "original_prediction": class_names[orig_pred],
+        "adversarial_prediction": class_names[adv_pred],
+        "target_label": class_names[target_label],
+        "success": adv_pred == target_label,
+        "num_replacements": replacements,
+        "original_probs": orig_probs.cpu().numpy(),
+        "adversarial_probs": final_probs.cpu().numpy(),
+    }
