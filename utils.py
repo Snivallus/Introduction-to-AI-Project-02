@@ -126,8 +126,7 @@ def evaluate_classifiers(
     from sklearn.ensemble import RandomForestClassifier
     from sklearn.svm import SVC
     from sklearn.neighbors import KNeighborsClassifier
-    from sklearn.metrics import accuracy_score, ConfusionMatrixDisplay, \
-        confusion_matrix
+    from sklearn.metrics import accuracy_score, ConfusionMatrixDisplay, confusion_matrix
 
     # Scale features for distance-based classifiers (SVM, KNN)
     scaler = StandardScaler()
@@ -202,7 +201,7 @@ def train_finetune_experiment(
     eval_dataset: "datasets.Dataset",
     num_labels: int,
     ckpt_dir: str = "./checkpoints",
-    num_epochs: int = 5,
+    num_epochs: int = 10,
     early_stopping_patience: int = 2,
     device_id: int = 0,
 ) -> Dict[str, Any]:
@@ -279,12 +278,12 @@ def train_finetune_experiment(
         per_device_eval_batch_size=batch_size,
         weight_decay=weight_decay,
         eval_strategy="epoch",
-        save_strategy="no",
+        save_strategy="epoch",
+        save_total_limit=1,
         load_best_model_at_end=True,
         metric_for_best_model="accuracy",
         greater_is_better=True,
-        logging_steps=max(
-            1, len(train_dataset) // batch_size // 10),
+        logging_steps=max(1, len(train_dataset) // batch_size // num_epochs // 5),
         remove_unused_columns=False,
         disable_tqdm=True,
         report_to="none",
@@ -373,8 +372,7 @@ def plot_hyperparameter_effects(
                      color="#2196F3", ecolor="#FF5722")
 
         for xi, (val, group) in enumerate(grouped):
-            jitter = np.random.default_rng(42).uniform(-0.05, 0.05,
-                                                       len(group))
+            jitter = np.random.default_rng(42).uniform(-0.05, 0.05, len(group))
             ax.scatter(xi + jitter, group.values, alpha=0.5,
                        color="#FF5722", s=30)
 
@@ -400,7 +398,7 @@ def tune_hyperparameters(
     train_dataset: "datasets.Dataset",
     eval_dataset: "datasets.Dataset",
     num_labels: int,
-    num_epochs: int = 5,
+    num_epochs: int = 10,
     early_stopping_patience: int = 2,
     ckpt_dir: str = "./checkpoints",
     results_dir: str = "./figures",
@@ -429,8 +427,8 @@ def tune_hyperparameters(
     os.makedirs(results_dir, exist_ok=True)
 
     param_grid = {
-        "learning_rate": [1e-6, 1e-5, 1e-4],
-        "batch_size": [4, 16, 64],
+        "learning_rate": [1e-5, 3e-5, 1e-4],
+        "batch_size": [8, 16, 32],
         "weight_decay": [0.01, 0.1, 1.0],
     }
 
