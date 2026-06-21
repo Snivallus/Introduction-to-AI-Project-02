@@ -202,8 +202,8 @@ def train_finetune_experiment(
     eval_dataset: "datasets.Dataset",
     num_labels: int,
     ckpt_dir: str = "./checkpoints",
-    num_epochs: int = 10,
-    early_stopping_patience: int = 3,
+    num_epochs: int = 5,
+    early_stopping_patience: int = 2,
     device_id: int = 0,
 ) -> Dict[str, Any]:
     """Train one fine-tuning experiment with given hyperparameters.
@@ -283,9 +283,9 @@ def train_finetune_experiment(
         load_best_model_at_end=True,
         metric_for_best_model="accuracy",
         greater_is_better=True,
-        save_total_limit=2,
+        save_total_limit=1,
         logging_steps=max(
-            1, len(train_dataset) // batch_size // 10),
+            1, len(train_dataset) // batch_size // num_epochs),
         remove_unused_columns=False,
         disable_tqdm=True,
         report_to="none",
@@ -398,6 +398,8 @@ def tune_hyperparameters(
     train_dataset: "datasets.Dataset",
     eval_dataset: "datasets.Dataset",
     num_labels: int,
+    num_epochs: int = 5,
+    early_stopping_patience: int = 2,
     ckpt_dir: str = "./checkpoints",
     results_dir: str = "./figures",
 ) -> None:
@@ -425,9 +427,9 @@ def tune_hyperparameters(
     os.makedirs(results_dir, exist_ok=True)
 
     param_grid = {
-        "learning_rate": [2e-5, 1e-4, 5e-4],
-        "batch_size": [4, 8, 16],
-        "weight_decay": [0.001, 0.01, 0.1],
+        "learning_rate": [1e-6, 1e-5, 1e-4],
+        "batch_size": [4, 16, 64],
+        "weight_decay": [0.01, 0.1, 1.0],
     }
 
     keys = list(param_grid.keys())
@@ -444,7 +446,7 @@ def tune_hyperparameters(
         experiment_args.append((
             exp_idx, lr, bs, wd, model_ckpt,
             train_dataset, eval_dataset, num_labels,
-            ckpt_dir, 10, 3, device_id,
+            ckpt_dir, num_epochs, early_stopping_patience, device_id,
         ))
 
     results = []
