@@ -639,7 +639,7 @@ def gradient_attack(
           f"({orig_probs[orig_pred]:.3f})")
     print(f"  Adversarial: '{current_text}' -> {class_names[adv_pred]} "
           f"({final_probs[adv_pred]:.3f})")
-    print()
+    print("")
 
     return {
         "original_text": text,
