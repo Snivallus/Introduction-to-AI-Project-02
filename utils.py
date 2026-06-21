@@ -97,6 +97,8 @@ def wrap_print_text(print_fn: Callable) -> Callable:
 
 print = wrap_print_text(print)
 
+SEED = 51
+
 
 def evaluate_classifiers(
     X_train_raw: np.ndarray,
@@ -285,6 +287,8 @@ def train_finetune_experiment(
         greater_is_better=True,
         logging_steps=max(1, len(train_dataset) // batch_size // num_epochs // 5),
         remove_unused_columns=False,
+        seed=SEED,
+        data_seed=SEED,
         disable_tqdm=True,
         report_to="none",
         log_level="error",
