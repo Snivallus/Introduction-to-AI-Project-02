@@ -1,0 +1,4 @@
+Strategy,Source / Target,Adversarial Text,Prediction,Confidence,Success
+HotFlip (gradient),joy -> love,i can have for a treat or if i am feeling fondive,love,0.991,True
+HotFlip (gradient),sadness -> love,im feeling quite devoted andieving for myself but ill snap out of it soon,love,0.887,True
+HotFlip (gradient),anger -> love,i am just feeling naughty and blue,love,0.991,True
